@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root {
+  --cream: #f6f1e6;
+  --cream-deep: #efe7d6;
+  --ink: #1b1915;
+  --ink-soft: #4a463d;
+  --accent: #b5452f; /* warm brick-red, pulled from the shop's reds (Mount Fuji / crimson pieces) */
+  --line: #ddd3bd;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--cream);
+  color: var(--ink);
+}
+
+.font-display {
+  font-family: var(--font-garamond), "EB Garamond", Georgia, serif;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--cream);
+}
+
+.hairline {
+  border-color: var(--line);
+}
