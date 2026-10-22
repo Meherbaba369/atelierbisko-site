@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   },
   description:
     "Vivid, strange, beautiful fine-art giclée prints for your wall — directed, curated and signed by the artist, printed to order and shipped worldwide by Gelato.",
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     siteName: "Atelier Bisko",

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { SHOP_URL } from "@/lib/data";
+import { SHOP_URL, SITE_URL } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: "Contact",
   description: "Message Atelier Bisko directly through Etsy — orders, sizing questions, or anything else.",
+  alternates: { canonical: `${SITE_URL}/contact` },
 };
 
 export default function ContactPage() {

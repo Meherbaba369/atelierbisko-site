@@ -1,11 +1,27 @@
 import type { Metadata } from "next";
-import { getAllItems, sectionsInOrder } from "@/lib/data";
+import { getAllItems, sectionsInOrder, SITE_URL } from "@/lib/data";
 import CollectionGrid from "./CollectionGrid";
 
+const COLLECTION_TITLE = "The Collection";
+const COLLECTION_DESC =
+  "All 87 fine-art giclée prints from Atelier Bisko — Singles, Sets, Framed and Flowers. Made to order, shipped worldwide by Gelato.";
+
 export const metadata: Metadata = {
-  title: "The Collection",
-  description:
-    "All 87 fine-art giclée prints from Atelier Bisko — Singles, Sets, Framed and Flowers. Made to order, shipped worldwide by Gelato.",
+  title: COLLECTION_TITLE,
+  description: COLLECTION_DESC,
+  alternates: { canonical: `${SITE_URL}/collection` },
+  openGraph: {
+    type: "website",
+    title: `${COLLECTION_TITLE} | Atelier Bisko`,
+    description: COLLECTION_DESC,
+    url: `${SITE_URL}/collection`,
+    images: ["/logo.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${COLLECTION_TITLE} | Atelier Bisko`,
+    description: COLLECTION_DESC,
+  },
 };
 
 export default function CollectionPage() {

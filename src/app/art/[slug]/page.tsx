@@ -24,7 +24,8 @@ export async function generateMetadata({
     description: desc,
     alternates: { canonical: `${SITE_URL}/art/${item.slug}` },
     openGraph: {
-      type: "website",
+      // type is "product" for art pages — set via a raw <meta property="og:type"> tag in the
+      // page body instead of here, since Next's typed OpenGraphType union has no "product" value.
       title: `${shortTitle} | Atelier Bisko`,
       description: desc,
       url: `${SITE_URL}/art/${item.slug}`,
@@ -48,9 +49,11 @@ export default async function ArtworkPage({ params }: { params: Promise<{ slug: 
   const paragraphs = item.description.split("\n\n").filter(Boolean);
   const mainImage = item.images[0];
 
+  // Product + VisualArtwork (multi-typed): a print is both a sellable product (price/offers for
+  // Google/Pinterest rich results) and an artwork (medium/edition/creator for art-specific search).
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "VisualArtwork",
+    "@type": ["Product", "VisualArtwork"],
     name: shortTitle,
     description: paragraphs[0],
     image: item.images.map((i) => i.url_full),
@@ -72,11 +75,42 @@ export default async function ArtworkPage({ params }: { params: Promise<{ slug: 
       })),
   };
 
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Collection", item: `${SITE_URL}/collection` },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: item.section,
+        item: `${SITE_URL}/collection?section=${encodeURIComponent(item.section)}`,
+      },
+      { "@type": "ListItem", position: 4, name: shortTitle, item: `${SITE_URL}/art/${item.slug}` },
+    ],
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
+      {/*
+        Pinterest Rich Pin / Open Graph product tags. Rendered as plain <meta property> elements
+        (not the Metadata API's `openGraph` field, which has no "product" og:type) so the exact
+        og:type="product" + product:price:* + availability tags land in <head> — React 19 hoists
+        <meta>/<link>/<title> elements to <head> regardless of where in the tree they're rendered.
+      */}
+      <meta property="og:type" content="product" />
+      <meta property="product:price:amount" content={String(item.price_min ?? "")} />
+      <meta property="product:price:currency" content={item.currency} />
+      <meta property="product:availability" content="instock" />
+      <meta property="og:availability" content="instock" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
       <nav className="mb-6 text-xs text-[var(--ink-soft)]">
         <Link href="/collection" className="hover:text-[var(--ink)]">Collection</Link>

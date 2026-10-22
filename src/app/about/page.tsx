@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { SITE_URL } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: "About",
   description:
     "Atelier Bisko makes vivid, surreal fine-art prints with AI-assisted tools, honestly disclosed — directed, curated and signed by the artist. Printed to order by Gelato.",
+  alternates: { canonical: `${SITE_URL}/about` },
 };
 
 export default function AboutPage() {
