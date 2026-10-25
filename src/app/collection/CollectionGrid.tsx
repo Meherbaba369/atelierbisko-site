@@ -39,7 +39,7 @@ export default function CollectionGrid({ items, sections }: { items: Item[]; sec
       </div>
       <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
         {filtered.map((item, i) => (
-          <ArtCard key={item.listing_id} item={item} priority={i < 4} />
+          <ArtCard key={item.id} item={item} priority={i < 4} />
         ))}
       </div>
     </div>

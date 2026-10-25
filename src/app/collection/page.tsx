@@ -4,7 +4,7 @@ import CollectionGrid from "./CollectionGrid";
 
 const COLLECTION_TITLE = "The Collection";
 const COLLECTION_DESC =
-  "All 87 fine-art giclée prints from Atelier Bisko — Singles, Sets, Framed and Flowers. Made to order, shipped worldwide by Gelato.";
+  "Every approved fine-art giclée print from Atelier Bisko, plus curated sets. Made to order, shipped worldwide by Gelato.";
 
 export const metadata: Metadata = {
   title: COLLECTION_TITLE,

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """fetch-etsy.py — pulls all active atelierbisko Etsy listings into a build-time JSON snapshot.
-Run: python3 scripts/fetch-etsy.py   (writes data/listings.json)
+Run: python3 scripts/fetch-etsy.py   (writes data/etsy-snapshot.json)
+This is the RAW Etsy pull only. The site itself reads data/listings.json, which is produced by
+scripts/build-catalog.py (vault artworks + this Etsy snapshot -> final catalog + thumbnails).
 Refresh any time listings change; the Next.js site reads only the JSON (no live Etsy calls at request time).
 """
 import sys, os, json, time, re, html
@@ -127,7 +129,7 @@ def main():
         'sections': list(SECTION_NAMES.values()),
         'items': items,
     }
-    out_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'listings.json')
+    out_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'etsy-snapshot.json')
     with open(out_path, 'w') as f:
         json.dump(snapshot, f, indent=1)
     print(f'wrote {out_path} ({len(items)} items)', file=sys.stderr)

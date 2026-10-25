@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAllItems, getItemBySlug, priceLabel, SITE_URL } from "@/lib/data";
+import ArtGallery from "@/components/ArtGallery";
 
 export function generateStaticParams() {
   return getAllItems().map((item) => ({ slug: item.slug }));
@@ -18,7 +18,7 @@ export async function generateMetadata({
   if (!item) return {};
   const shortTitle = item.title.split(",")[0];
   const desc = item.description.split("\n\n")[0].slice(0, 200);
-  const img = item.images[0]?.url_full;
+  const img = item.card.src1600;
   return {
     title: shortTitle,
     description: desc,
@@ -29,13 +29,13 @@ export async function generateMetadata({
       title: `${shortTitle} | Atelier Bisko`,
       description: desc,
       url: `${SITE_URL}/art/${item.slug}`,
-      images: img ? [{ url: img, width: item.images[0].width, height: item.images[0].height, alt: item.images[0].alt }] : undefined,
+      images: [{ url: img, width: item.card.w1600, height: item.card.h1600, alt: shortTitle }],
     },
     twitter: {
       card: "summary_large_image",
       title: shortTitle,
       description: desc,
-      images: img ? [img] : undefined,
+      images: [img],
     },
   };
 }
@@ -47,7 +47,6 @@ export default async function ArtworkPage({ params }: { params: Promise<{ slug: 
 
   const shortTitle = item.title.split(",")[0];
   const paragraphs = item.description.split("\n\n").filter(Boolean);
-  const mainImage = item.images[0];
 
   // Product + VisualArtwork (multi-typed): a print is both a sellable product (price/offers for
   // Google/Pinterest rich results) and an artwork (medium/edition/creator for art-specific search).
@@ -56,7 +55,7 @@ export default async function ArtworkPage({ params }: { params: Promise<{ slug: 
     "@type": ["Product", "VisualArtwork"],
     name: shortTitle,
     description: paragraphs[0],
-    image: item.images.map((i) => i.url_full),
+    image: item.gallery.map((i) => i.src),
     url: `${SITE_URL}/art/${item.slug}`,
     artMedium: "Giclée print on matte paper",
     artworkSurface: "Paper",
@@ -102,8 +101,8 @@ export default async function ArtworkPage({ params }: { params: Promise<{ slug: 
       <meta property="og:type" content="product" />
       <meta property="product:price:amount" content={String(item.price_min ?? "")} />
       <meta property="product:price:currency" content={item.currency} />
-      <meta property="product:availability" content="instock" />
-      <meta property="og:availability" content="instock" />
+      <meta property="product:availability" content={item.url ? "instock" : "oos"} />
+      <meta property="og:availability" content={item.url ? "instock" : "oos"} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -121,44 +120,36 @@ export default async function ArtworkPage({ params }: { params: Promise<{ slug: 
       <div className="grid gap-10 lg:grid-cols-2">
         {/* GALLERY */}
         <div>
-          <div className="relative aspect-[2/3] overflow-hidden rounded-sm border hairline bg-[var(--cream-deep)]">
-            {mainImage && (
-              <Image
-                src={mainImage.url_full}
-                alt={mainImage.alt || shortTitle}
-                fill
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className="object-cover"
-                priority
-              />
-            )}
-          </div>
-          {item.images.length > 1 && (
-            <div className="mt-3 grid grid-cols-4 gap-3 sm:grid-cols-6">
-              {item.images.slice(1).map((img) => (
-                <div key={img.rank} className="relative aspect-square overflow-hidden rounded-sm border hairline bg-[var(--cream-deep)]">
-                  <Image src={img.url_570} alt={img.alt || shortTitle} fill sizes="120px" className="object-cover" />
-                </div>
-              ))}
-            </div>
-          )}
+          <ArtGallery images={item.gallery} title={shortTitle} />
         </div>
 
         {/* INFO */}
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--ink-soft)] mb-2">{item.section}</p>
           <h1 className="font-display text-3xl sm:text-4xl leading-tight mb-3">{shortTitle}</h1>
-          <p className="text-xl text-[var(--ink)] mb-6">{priceLabel(item)}</p>
+          <p className="text-xl text-[var(--ink)] mb-6">{priceLabel(item) || (item.url ? "" : "Coming soon")}</p>
 
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full sm:w-auto sm:inline-block rounded-full bg-[var(--ink)] px-8 py-3.5 text-center text-sm uppercase tracking-wider text-[var(--cream)] hover:bg-[var(--accent)] transition-colors"
-          >
-            Buy on Etsy
-          </a>
-          <p className="mt-2 text-xs text-[var(--ink-soft)]">Pick your size at checkout &middot; opens the Etsy listing</p>
+          {item.url ? (
+            <>
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full sm:w-auto sm:inline-block rounded-full bg-[var(--ink)] px-8 py-3.5 text-center text-sm uppercase tracking-wider text-[var(--cream)] hover:bg-[var(--accent)] transition-colors"
+              >
+                {item.buy_label}
+              </a>
+              <p className="mt-2 text-xs text-[var(--ink-soft)]">
+                {item.buy_label === "Buy on Etsy"
+                  ? <>Pick your size at checkout &middot; opens the Etsy listing</>
+                  : <>Opens in a new tab</>}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-[var(--ink-soft)]">
+              Not listed for sale yet &mdash; check back soon, or follow the shop for new drops.
+            </p>
+          )}
 
           {item.variants.length > 0 && (
             <div className="mt-8 border-t hairline pt-6">

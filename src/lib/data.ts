@@ -7,30 +7,41 @@ export type Variant = {
   enabled: boolean;
 };
 
-export type EtsyImage = {
-  rank: number;
+export type GalleryImage = {
+  src: string;
   alt: string;
-  url_570: string;
-  url_full: string;
   width: number;
   height: number;
+  kind: "card" | "remote";
+};
+
+export type CardImage = {
+  src800: string;
+  src1600: string;
+  w800: number;
+  h800: number;
+  w1600: number;
+  h1600: number;
 };
 
 export type Item = {
-  listing_id: number;
+  id: string;
+  kind: "artwork" | "set";
   slug: string;
   title: string;
   description: string;
-  url: string;
+  url: string | null;
+  buy_label: string;
   tags: string[];
   section: string;
   price_min: number | null;
   price_max: number | null;
   currency: string;
   variants: Variant[];
-  images: EtsyImage[];
+  card: CardImage;
+  gallery: GalleryImage[];
   num_favorers: number;
-  is_set: boolean;
+  members?: string[];
 };
 
 export type Snapshot = {
@@ -71,12 +82,8 @@ export function getItemsBySection(section: string): Item[] {
 }
 
 export function sectionsInOrder(): string[] {
-  const order = ["Singles", "Sets", "Framed", "Flowers"];
+  const order = ["Prints", "Sets"];
   return order.filter((s) => data.sections.includes(s));
-}
-
-export function firstImage(item: Item): EtsyImage | undefined {
-  return item.images[0];
 }
 
 export function priceLabel(item: Item): string {
@@ -85,14 +92,10 @@ export function priceLabel(item: Item): string {
   return `$${item.price_min!.toFixed(0)} – $${item.price_max!.toFixed(0)}`;
 }
 
-// Curated featured slugs for the homepage — a visual spread across sections,
-// stable across rebuilds (not favorites-ranked, since the shop is brand new).
+// Curated featured slugs for the homepage — a visual spread across the catalogue, stable across
+// rebuilds (not favorites-ranked, since the shop is brand new).
 export function getFeatured(count = 8): Item[] {
-  const singles = getItemsBySection("Singles");
-  const flowers = getItemsBySection("Flowers");
-  const framed = getItemsBySection("Framed");
-  const pool = [...singles, ...flowers, ...framed];
-  // simple deterministic spread: every Nth item
+  const pool = getItemsBySection("Prints");
   const step = Math.max(1, Math.floor(pool.length / count));
   const picked: Item[] = [];
   for (let i = 0; i < pool.length && picked.length < count; i += step) {

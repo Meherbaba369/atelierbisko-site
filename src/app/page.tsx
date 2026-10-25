@@ -1,13 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import ArtCard from "@/components/ArtCard";
-import { getFeatured, getSets, getSnapshot, SHOP_URL } from "@/lib/data";
+import { getAllItems, getFeatured, getSets, getSnapshot, SHOP_URL } from "@/lib/data";
 
 export default function Home() {
   const featured = getFeatured(8);
   const sets = getSets();
   const hero = featured[0];
   const snapshot = getSnapshot();
+  const totalCount = getAllItems().filter((i) => i.kind === "artwork").length;
 
   return (
     <div>
@@ -44,13 +45,13 @@ export default function Home() {
             </div>
           </div>
           {hero && (
-            <Link href={`/art/${hero.slug}`} className="group relative block aspect-[2/3] max-w-sm justify-self-center overflow-hidden rounded-sm border hairline shadow-[0_30px_60px_-20px_rgba(27,25,21,0.25)]">
+            <Link href={`/art/${hero.slug}`} className="group relative block aspect-[2/3] max-w-sm justify-self-center overflow-hidden rounded-sm bg-[var(--cream)]">
               <Image
-                src={hero.images[0].url_full}
-                alt={hero.images[0].alt || hero.title}
+                src={hero.card.src1600}
+                alt={hero.title}
                 fill
                 sizes="(max-width: 1024px) 80vw, 420px"
-                className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                className="object-contain transition-transform duration-700 ease-out group-hover:scale-[1.03]"
                 priority
               />
             </Link>
@@ -72,7 +73,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
             {sets.map((item, i) => (
-              <ArtCard key={item.listing_id} item={item} priority={i === 0} />
+              <ArtCard key={item.id} item={item} priority={i === 0} />
             ))}
           </div>
         </section>
@@ -83,12 +84,12 @@ export default function Home() {
         <div className="mb-7 flex items-end justify-between">
           <h2 className="font-display text-2xl sm:text-3xl">A Few Favourites</h2>
           <Link href="/collection" className="text-sm text-[var(--ink-soft)] hover:text-[var(--ink)] whitespace-nowrap">
-            View all 87 &rarr;
+            View all {totalCount} &rarr;
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
           {featured.map((item) => (
-            <ArtCard key={item.listing_id} item={item} />
+            <ArtCard key={item.id} item={item} />
           ))}
         </div>
       </section>
