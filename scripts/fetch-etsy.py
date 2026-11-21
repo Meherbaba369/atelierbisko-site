@@ -41,6 +41,8 @@ def fetch_all_active():
         out += data['results']
         if len(out) >= data['count']:
             break
+        if not data['results']:
+            raise RuntimeError('Etsy active listings pagination ended early')
         offset += 100
     return out
 
@@ -48,7 +50,7 @@ def fetch_all_active():
 def fetch_images(listing_id):
     st, data = e.call('GET', f'/listings/{listing_id}/images', auth=False)
     if st != 200:
-        return []
+        raise RuntimeError(f'Etsy listing {listing_id} image request returned HTTP {st}')
     imgs = sorted(data['results'], key=lambda i: i['rank'])
     return [{
         'rank': i['rank'],
@@ -114,6 +116,8 @@ def main():
         time.sleep(0.05)
 
     shop_st, shop = e.call('GET', f'/shops/{e.SHOP_ID}', auth=False)
+    if shop_st != 200 or shop.get('shop_name', '').lower() != 'atelierbisko':
+        raise RuntimeError(f'Could not verify the Atelier Bisko Etsy shop (HTTP {shop_st})')
     snapshot = {
         'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
         'shop': {

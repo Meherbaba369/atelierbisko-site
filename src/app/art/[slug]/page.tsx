@@ -139,6 +139,17 @@ export default async function ArtworkPage({ params }: { params: Promise<{ slug: 
               >
                 {item.buy_label}
               </a>
+              {item.other_buy_links?.map(({ url, label }) => (
+                <a
+                  key={url}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 block text-sm underline underline-offset-4"
+                >
+                  {label}
+                </a>
+              ))}
               <p className="mt-2 text-xs text-[var(--ink-soft)]">
                 {item.buy_label === "Buy on Etsy"
                   ? <>Pick your size at checkout &middot; opens the Etsy listing</>

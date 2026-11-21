@@ -9,6 +9,7 @@ export type Variant = {
 
 export type GalleryImage = {
   src: string;
+  thumbnail_src?: string;
   alt: string;
   width: number;
   height: number;
@@ -32,6 +33,7 @@ export type Item = {
   description: string;
   url: string | null;
   buy_label: string;
+  other_buy_links?: { url: string; label: string }[];
   tags: string[];
   section: string;
   price_min: number | null;

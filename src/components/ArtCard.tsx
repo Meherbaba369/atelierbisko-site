@@ -13,6 +13,7 @@ export default function ArtCard({ item, priority = false }: { item: Item; priori
           src={item.card.src800}
           alt={item.title}
           fill
+          unoptimized
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           className="object-contain transition-transform duration-500 ease-out group-hover:scale-[1.03]"
           priority={priority}

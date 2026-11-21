@@ -55,8 +55,7 @@ def load_approved_vault_artworks():
         try:
             m = json.load(open(meta_path))
         except Exception as ex:
-            print(f"  WARN: unreadable {meta_path}: {ex}", file=sys.stderr)
-            continue
+            raise RuntimeError(f"Unreadable vault metadata: {meta_path}") from ex
         pub = m.get("status", {}).get("publish", {})
         if isinstance(pub, dict) and pub.get("on") is True:
             folder = os.path.dirname(meta_path)
@@ -164,23 +163,20 @@ def load_precomposed_card(path, out_h):
 
 
 def export_card(meta, slug, title):
-    """Writes public/art/<slug>/card-800.webp + card-1600.webp. Returns dict with both sizes'
-    src/width/height for the JSON, plus the 1600 PIL image (so set composites can reuse it)."""
+    """Write the grid and hero images and return their catalogue metadata."""
     src_path, is_precomposed = find_bare_print_source(meta)
+    if src_path is None:
+        raise FileNotFoundError(f"No artwork source for {meta['_vault_slug']}")
     out_dir = os.path.join(PUBLIC_ART, slug)
     os.makedirs(out_dir, exist_ok=True)
 
     sizes = {}
-    big_img = None
     for h in (1600, 800):
-        if src_path is None:
-            # no source image at all — shouldn't happen for approved art, but don't crash the build
-            im = Image.new("RGB", (int(h * 0.667), h), CARD_BG)
-        elif is_precomposed:
+        if is_precomposed:
             im = load_precomposed_card(src_path, h)
         else:
-            raw = Image.open(src_path)
-            im = compose_card(raw, title, out_h=h)
+            with Image.open(src_path) as raw:
+                im = compose_card(raw, title, out_h=h)
         out_path = os.path.join(out_dir, f"card-{h}.webp")
         im.save(out_path, "WEBP", quality=86, method=5)
         sizes[h] = {
@@ -188,9 +184,7 @@ def export_card(meta, slug, title):
             "width": im.width,
             "height": im.height,
         }
-        if h == 1600:
-            big_img = im
-    return sizes, big_img
+    return sizes
 
 
 def export_set_composite(slug, member_cards, title):
@@ -230,19 +224,20 @@ def etsy_item_for_listing_id(etsy_items_by_id, listing_id):
     return etsy_items_by_id.get(str(listing_id)) or etsy_items_by_id.get(int(listing_id) if str(listing_id).isdigit() else listing_id)
 
 
-def buy_info_for_artwork(meta, etsy_items_by_id):
-    """Returns (buy_url, buy_label, etsy_item_or_None)."""
-    listings = meta.get("status", {}).get("listings", {})
-    etsy = listings.get("etsy")
-    if isinstance(etsy, dict) and etsy.get("url") and etsy.get("state") == "active":
-        lid = etsy.get("etsy_listing_id")
-        etsy_item = etsy_item_for_listing_id(etsy_items_by_id, lid)
-        return etsy["url"], "Buy on Etsy", etsy_item
-    rb_status = listings.get("redbubble")
-    rb = meta.get("redbubble")
-    if rb_status == "live" and isinstance(rb, dict) and rb.get("url"):
-        return rb["url"], "View on Redbubble", None
-    return None, "Coming soon", None
+def buy_options_for_artwork(meta, etsy_items_by_id):
+    status = meta.get("status", {})
+    listings = status.get("listings", {})
+    options = []
+    for channel, label in (("etsy", "Buy on Etsy"), ("etsy_framed", "Buy framed on Etsy")):
+        listing = listings.get(channel)
+        if isinstance(listing, dict):
+            item = etsy_item_for_listing_id(etsy_items_by_id, listing.get("etsy_listing_id"))
+            if item and all(option["url"] != item["url"] for option, _ in options):
+                options.append(({"url": item["url"], "label": label}, item))
+    rb = status.get("redbubble") or meta.get("redbubble")
+    if listings.get("redbubble") == "live" and isinstance(rb, dict) and rb.get("url"):
+        options.append(({"url": rb["url"], "label": "View on Redbubble"}, None))
+    return options
 
 
 # ---------------------------------------------------------------------------
@@ -263,23 +258,31 @@ def main():
 
     print("== scanning art-vault for approved artworks ==", file=sys.stderr)
     approved = load_approved_vault_artworks()
+    if not approved or not etsy_items_by_id:
+        raise RuntimeError("Empty approved vault or Etsy snapshot; retaining the published catalogue")
     print(f"  {len(approved)} approved artworks", file=sys.stderr)
 
+    with open(OUT_JSON, encoding="utf-8") as previous_file:
+        previous = json.load(previous_file)
+    previous_slugs = {item["id"]: item["slug"] for item in previous["items"]}
     items = []
-    artwork_card_cache = {}  # vault slug -> {800: PIL, 1600: PIL}  (for set composites)
+    artwork_cards = {}
+    linked_etsy = set()
 
     for meta in approved:
         vault_slug = meta["_vault_slug"]
         title = meta.get("title") or vault_slug
-        buy_url, buy_label, etsy_item = buy_info_for_artwork(meta, etsy_items_by_id)
+        options = buy_options_for_artwork(meta, etsy_items_by_id)
+        primary, etsy_item = options[0] if options else ({"url": None, "label": "Coming soon"}, None)
+        linked_etsy.update(item["listing_id"] for _, item in options if item)
 
-        slug = etsy_item["slug"] if etsy_item else slugify(title) + "-" + vault_slug.split("__")[-1]
+        slug = previous_slugs.get(vault_slug) or (
+            etsy_item["slug"] if etsy_item else slugify(title) + "-" + vault_slug.split("__")[-1]
+        )
 
         print(f"  [{len(items)+1}/{len(approved)}] {vault_slug} -> {slug}", file=sys.stderr)
-        card_sizes, card_1600_img = export_card(meta, slug, title)
-        # also need the 800 version in-memory for potential set composites
-        card_800_img = Image.open(os.path.join(PUBLIC_ART, slug, "card-800.webp")).convert("RGB")
-        artwork_card_cache[vault_slug] = {800: card_800_img, 1600: card_1600_img}
+        card_sizes = export_card(meta, slug, title)
+        artwork_cards[vault_slug] = card_sizes
 
         gallery = [{
             "src": card_sizes[1600]["src"],
@@ -287,6 +290,7 @@ def main():
             "width": card_sizes[1600]["width"],
             "height": card_sizes[1600]["height"],
             "kind": "card",
+            "thumbnail_src": card_sizes[800]["src"],
         }]
 
         if etsy_item:
@@ -301,6 +305,7 @@ def main():
                     "width": img["width"],
                     "height": img["height"],
                     "kind": "remote",
+                    "thumbnail_src": img["url_570"],
                 })
         else:
             description = meta.get("prompt") or title
@@ -315,8 +320,9 @@ def main():
             "slug": slug,
             "title": title,
             "description": description,
-            "url": buy_url,
-            "buy_label": buy_label,
+            "url": primary["url"],
+            "buy_label": primary["label"],
+            "other_buy_links": [option for option, _ in options[1:]],
             "tags": tags,
             "section": "Prints",
             "price_min": price_min,
@@ -335,6 +341,8 @@ def main():
     approved_vault_slugs = {m["_vault_slug"] for m in approved}
     set_count = 0
     for etsy_item in etsy_snap["items"]:
+        if etsy_item["listing_id"] in linked_etsy:
+            continue
         if etsy_item.get("section") != "Sets" and not etsy_item.get("is_set"):
             continue
         prints_in_title = set()
@@ -346,22 +354,27 @@ def main():
         member_slugs = []
         for tag in sorted(prints_in_title):
             matches = [s for s in approved_vault_slugs if s.endswith("__" + tag)]
-            if matches:
+            if len(matches) == 1:
                 member_slugs.append(matches[0])
             else:
-                print(f"  WARN: set '{etsy_item['slug']}' references {tag}, no approved vault match", file=sys.stderr)
-        if len(member_slugs) < 2:
+                print(f"  WARN: set '{etsy_item['slug']}' references {tag}, expected one approved vault match", file=sys.stderr)
+        if len(member_slugs) < 2 or len(member_slugs) != len(prints_in_title):
             continue
 
-        member_cards = [artwork_card_cache[s] for s in member_slugs if s in artwork_card_cache]
-        if len(member_cards) < 2:
-            print(f"  WARN: set '{etsy_item['slug']}' members not in card cache, skipping", file=sys.stderr)
-            continue
+        member_cards = []
+        for member in member_slugs:
+            cards = {}
+            for size, card in artwork_cards[member].items():
+                with Image.open(os.path.join(ROOT, "public", card["src"].lstrip("/"))) as image:
+                    cards[size] = image.convert("RGB")
+            member_cards.append(cards)
 
-        set_slug = etsy_item["slug"]
+        set_id = f"set-{etsy_item['listing_id']}"
+        set_slug = previous_slugs.get(set_id, etsy_item["slug"])
         print(f"  set: {set_slug} <- {member_slugs}", file=sys.stderr)
         card_sizes = export_set_composite(set_slug, member_cards, etsy_item["title"])
         set_count += 1
+        linked_etsy.add(etsy_item["listing_id"])
 
         gallery = [{
             "src": card_sizes[1600]["src"],
@@ -369,6 +382,7 @@ def main():
             "width": card_sizes[1600]["width"],
             "height": card_sizes[1600]["height"],
             "kind": "card",
+            "thumbnail_src": card_sizes[800]["src"],
         }]
         for img in etsy_item["images"]:
             gallery.append({
@@ -377,10 +391,11 @@ def main():
                 "width": img["width"],
                 "height": img["height"],
                 "kind": "remote",
+                "thumbnail_src": img["url_570"],
             })
 
         items.append({
-            "id": f"set-{etsy_item['listing_id']}",
+            "id": set_id,
             "kind": "set",
             "slug": set_slug,
             "title": etsy_item["title"],
@@ -407,7 +422,12 @@ def main():
         "sections": ["Prints", "Sets"],
         "items": items,
     }
-    with open(OUT_JSON, "w") as f:
+    unlinked = sorted(item["listing_id"] for item in etsy_snap["items"] if item["listing_id"] not in linked_etsy)
+    if unlinked:
+        print(f"  WARN: active Etsy listings without an approved artwork or set match: {unlinked}", file=sys.stderr)
+    if len({i["slug"] for i in items}) != len(items) or len({i["id"] for i in items}) != len(items):
+        raise RuntimeError("Duplicate catalogue slug or artwork ID")
+    with open(OUT_JSON, "w", encoding="utf-8") as f:
         json.dump(snapshot, f, indent=1)
 
     n_prints = sum(1 for i in items if i["kind"] == "artwork")

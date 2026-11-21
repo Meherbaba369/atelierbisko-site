@@ -53,7 +53,7 @@ export default function ArtGallery({ images, title }: { images: GalleryImage[]; 
           key={active.src}
           src={active.src}
           alt={active.alt || title}
-          unoptimized={active.kind === "remote"}
+          unoptimized
           onError={() => removeUnavailable(active)}
           fill
           sizes="(max-width: 1024px) 100vw, 50vw"
@@ -100,9 +100,9 @@ export default function ArtGallery({ images, title }: { images: GalleryImage[]; 
               }`}
             >
               <Image
-                src={img.src}
+                src={img.thumbnail_src || img.src}
                 alt={img.alt || title}
-                unoptimized={img.kind === "remote"}
+                unoptimized
                 onError={() => removeUnavailable(img)}
                 fill
                 sizes="120px"
